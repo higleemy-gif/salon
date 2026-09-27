@@ -17,3 +17,4 @@ _b.log
 # Videos are hosted on Cloudflare R2 and streamed directly; do not commit.
 videos/
 mirrors-transcoded/
+out
