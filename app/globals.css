@@ -1,0 +1,155 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Core */
+  --color-black: #0a0a0a;
+  --color-black-pure: #000000;
+  --color-charcoal: #161616;
+  --color-charcoal-2: #1f1f1f;
+
+  /* Gold */
+  --color-gold: #d4af37;
+  --color-gold-deep: #b8860b;
+  --color-gold-light: #f0d98c;
+  --color-gold-pale: #f5e6b8;
+
+  /* Platinum / silver */
+  --color-silver: #c0c0c0;
+  --color-platinum: #bfc1c2;
+
+  /* Neutrals */
+  --color-cream: #faf6ec;
+  --color-ivory: #fffdf8;
+  --color-ink: #14110c;
+  --color-muted: #6b6455;
+
+  --gradient-gold: linear-gradient(
+    135deg,
+    #b8860b 0%,
+    #d4af37 45%,
+    #f0d98c 70%,
+    #d4af37 100%
+  );
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--color-black);
+  color: var(--color-gold-pale);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background: var(--color-gold);
+  color: var(--color-black-pure);
+}
+
+/* ------- Reusable primitives ------- */
+@layer components {
+  .container-narrow {
+    @apply mx-auto w-full max-w-6xl px-5 sm:px-8;
+  }
+  .container-wide {
+    @apply mx-auto w-full max-w-7xl px-5 sm:px-8;
+  }
+
+  .eyebrow {
+    @apply text-[0.72rem] sm:text-xs font-medium uppercase tracking-[0.32em] text-gold;
+  }
+
+  .heading-serif {
+    @apply font-display font-medium leading-[1.05] tracking-tight;
+  }
+
+  .btn-primary {
+    @apply relative inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-semibold uppercase tracking-[0.18em] text-black transition-all duration-300;
+    background-image: var(--gradient-gold);
+    background-size: 200% 200%;
+    background-position: 0% 50%;
+  }
+  .btn-primary:hover {
+    background-position: 100% 50%;
+    box-shadow: 0 0 32px -4px rgba(212, 175, 55, 0.65);
+    transform: translateY(-1px);
+  }
+
+  .btn-outline {
+    @apply inline-flex items-center justify-center gap-2 rounded-full border border-gold/70 bg-transparent px-6 py-3 text-sm font-semibold uppercase tracking-[0.18em] text-gold transition-all duration-300 hover:border-gold hover:bg-gold/10 hover:shadow-gold-glow;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center gap-2 text-sm font-medium uppercase tracking-[0.18em] text-gold hover:text-gold-light transition-colors;
+  }
+
+  .gold-hairline {
+    height: 1px;
+    background: var(--gradient-gold);
+    opacity: 0.7;
+  }
+
+  .card-dark {
+    @apply relative rounded-xl border border-gold/20 bg-charcoal/70 backdrop-blur-sm transition-all duration-300 hover:border-gold/60 hover:shadow-gold-glow;
+  }
+
+  .input-field {
+    @apply w-full rounded-md border border-gold/30 bg-black-pure/60 px-4 py-3 text-sm text-gold-pale placeholder:text-gold-pale/40 focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold transition;
+  }
+
+  .label-field {
+    @apply mb-1.5 block text-xs font-medium uppercase tracking-[0.18em] text-gold;
+  }
+
+  .link-underline {
+    @apply relative text-gold hover:text-gold-light transition-colors;
+  }
+}
+
+/* Mobile horizontal-slider helpers */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Focus ring */
+*:focus-visible {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+/* Scrollbar (dark) */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-black);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-charcoal-2);
+  border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-gold-deep);
+}
+
+/* Prefers reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
