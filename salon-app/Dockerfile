@@ -4,9 +4,9 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
-# VITE_API_URL must be present at build time (Vite inlines it).
-# Coolify passes build-time env vars as build args.
-ARG VITE_API_URL
+# VITE_API_URL is inlined by Vite at build time. Default points at the deployed
+# backend; override by passing --build-arg VITE_API_URL=... if the backend URL changes.
+ARG VITE_API_URL=http://nsewpvj7asfhnlq4cgmyrfnc.187.53.143.234.sslip.io
 ENV VITE_API_URL=$VITE_API_URL
 RUN npm run build
 
