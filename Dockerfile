@@ -22,8 +22,7 @@ COPY salon-backend/src ./src/
 RUN addgroup -g 1001 -S nodejs && adduser -S orrenza -u 1001
 USER orrenza
 
+ENV NODE_ENV=production
 EXPOSE 4000
-
-CMD ["npm", "run", "start"]
 
 CMD ["node", "src/index.js"]

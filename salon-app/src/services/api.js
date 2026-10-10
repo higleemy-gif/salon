@@ -4,7 +4,11 @@ function normalizeApiBaseUrl(rawBase) {
   return rawBase.endsWith('/api') ? rawBase : `${rawBase.replace(/\/+$/, '')}/api`;
 }
 
-const API_BASE = normalizeApiBaseUrl(import.meta.env.VITE_API_BASE);
+// Accept either VITE_API_URL (documented) or VITE_API_BASE (legacy) so a deploy
+// works regardless of which name is set in the host's environment settings.
+const API_BASE = normalizeApiBaseUrl(
+  import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE
+);
 
 function getToken() {
   const saved = localStorage.getItem('glowdesk_token');

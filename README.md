@@ -165,7 +165,7 @@ Build and serve the frontend separately, or use a reverse proxy (Nginx/Caddy) to
 
 | Variable | Description | Default |
 |---|---|---|
-| `VITE_API_URL` | Backend API base URL | `http://localhost:4000` |
+| `VITE_API_URL` | Backend API base URL (leave unset locally; set to your deployed backend URL in production) | `http://localhost:4000` |
 
 ---
 

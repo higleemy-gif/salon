@@ -1,354 +1,215 @@
-import { useState, useEffect } from 'react';
-import { Scissors, Plus, Edit, ToggleLeft, ToggleRight, Trash2, Package } from 'lucide-react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { Scissors, Plus, Pencil, Loader2, Check, Search } from 'lucide-react';
 import PageHeader from '../components/ui/PageHeader';
+import { Card, CardBody } from '../components/ui/Card';
 import Button from '../components/ui/Button';
-import Badge from '../components/ui/Badge';
-import { useToast } from '../components/ui/Toast';
-import LoadingSpinner from '../components/ui/LoadingSpinner';
-import { Card, CardHeader } from '../components/ui/Card';
 import Modal from '../components/ui/Modal';
-import { services as servicesApi, staff as staffApi } from '../services/api';
-import { useAuth } from '../context/AuthContext';
-
-const emptyForm = { name: '', category: 'Hair', duration: 30, price: 0, categoryId: '', staffIds: [] };
-const emptyComboForm = { name: '', price: 0, serviceIds: [] };
+import EmptyState from '../components/ui/EmptyState';
+import LoadingSpinner from '../components/ui/LoadingSpinner';
+import { useToast } from '../components/ui/Toast';
+import { useSettings } from '../context/SettingsContext';
+import { services as servicesApi } from '../services/api';
+import { formatMoney } from '../lib/format';
 
 export default function ServicesPage() {
-  const [services, setServices] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [combos, setCombos] = useState([]);
-  const [allStaff, setAllStaff] = useState([]);
-  const [loading, setLoading] = useState(true);
   const toast = useToast();
-  const { user } = useAuth();
+  const salon = useSettings();
+  const currency = salon.currency || 'INR';
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const [svcRes, catRes, comboRes, staffRes] = await Promise.all([servicesApi.list(), servicesApi.categories(), servicesApi.listCombos(), staffApi.list()]);
-        setAllStaff((staffRes.data || []).filter(u => u.isActive !== false).map(u => ({ id: u.id, name: u.name })));
-        setServices((svcRes.data || []).map(s => ({
-          id: s.id, name: s.name, category: s.category?.name || '', categoryId: s.categoryId,
-          duration: s.duration, price: s.price, status: s.isActive ? 'active' : 'inactive',
-          staffIds: (s.staffServices || []).map(ss => ss.user?.id || ss.userId).filter(Boolean),
-          staffNames: (s.staffServices || []).map(ss => ss.user?.name).filter(Boolean),
-        })));
-        setCategories((catRes.data || []).map(c => c.name));
-        setCombos((comboRes.data || []).map(c => ({
-          id: c.id, name: c.name, price: c.price, isActive: c.isActive !== false,
-          services: (c.items || []).map(i => ({ id: i.service?.id, name: i.service?.name, price: i.service?.price, duration: i.service?.duration })),
-          serviceIds: (c.items || []).map(i => i.service?.id).filter(Boolean),
-        })));
-      } catch (err) { console.error('Failed to load services:', err); toast.error(err.message || 'Failed to load services'); }
-      setLoading(false);
-    }
-    load();
-  }, []);
-  const [showModal, setShowModal] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [list, setList] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [query, setQuery] = useState('');
   const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState(emptyForm);
-  const [showComboModal, setShowComboModal] = useState(false);
-  const [editingCombo, setEditingCombo] = useState(null);
-  const [comboForm, setComboForm] = useState(emptyComboForm);
+  const [modalOpen, setModalOpen] = useState(false);
 
-  const CATEGORIES = categories.length > 0 ? categories : ['Hair', 'Skin', 'Nails', 'Spa'];
-
-  const grouped = CATEGORIES.map(cat => ({
-    name: cat,
-    services: services.filter(s => s.category === cat),
-  })).filter(g => g.services.length > 0);
-
-  const openAdd = () => { setEditing(null); setForm(emptyForm); setShowModal(true); };
-  const openEdit = (svc) => { setEditing(svc); setForm({ name: svc.name, category: svc.category, duration: svc.duration, price: svc.price, staffIds: svc.staffIds || [] }); setShowModal(true); };
-
-  const handleSave = async (e) => {
-    e.preventDefault();
+  const load = useCallback(async () => {
+    setLoading(true);
     try {
-      if (editing) {
-        await servicesApi.update(editing.id, { name: form.name, categoryId: editing.categoryId, duration: Number(form.duration), price: Number(form.price), staffIds: form.staffIds });
-        const staffNames = allStaff.filter(s => form.staffIds.includes(s.id)).map(s => s.name);
-        setServices(prev => prev.map(s => s.id === editing.id ? { ...s, ...form, price: Number(form.price), duration: Number(form.duration), staffIds: form.staffIds, staffNames } : s));
-        toast.success('Service updated');
-      } else {
-        const res = await servicesApi.create({ name: form.name, categoryId: form.categoryId || undefined, duration: Number(form.duration), price: Number(form.price), staffIds: form.staffIds });
-        const staffNames = allStaff.filter(s => form.staffIds.includes(s.id)).map(s => s.name);
-        setServices(prev => [...prev, { id: res.id, name: form.name, category: form.category, categoryId: res.categoryId, duration: Number(form.duration), price: Number(form.price), status: 'active', staffIds: form.staffIds, staffNames }]);
-        toast.success('Service created');
-      }
-    } catch (err) { toast.error(err.message || 'Failed to save service'); }
-    setShowModal(false);
-  };
+      const [svc, cat] = await Promise.all([
+        servicesApi.list(),
+        servicesApi.categories().catch(() => ({ data: [] })),
+      ]);
+      setList(svc.data || []);
+      setCategories(cat.data || []);
+    } catch { toast.error('Could not load services'); }
+    finally { setLoading(false); }
+  }, [toast]);
 
-  const toggleStatus = async (id) => {
-    const svc = services.find(s => s.id === id);
-    if (!svc) return;
-    try {
-      await servicesApi.update(id, { isActive: svc.status !== 'active' });
-      setServices(prev => prev.map(s => s.id === id ? { ...s, status: s.status === 'active' ? 'inactive' : 'active' } : s));
-      toast.success(svc.status === 'active' ? 'Service deactivated' : 'Service activated');
-    } catch (err) { toast.error(err.message || 'Failed to toggle service status'); }
-  };
+  useEffect(() => { load(); }, [load]);
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Delete this service?')) return;
-    try {
-      await servicesApi.remove(id);
-      setServices(prev => prev.filter(s => s.id !== id));
-      toast.success('Service deleted');
-    } catch (err) { toast.error(err.message || 'Failed to delete service'); }
-  };
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return list;
+    return list.filter((s) => s.name.toLowerCase().includes(q));
+  }, [list, query]);
 
-  // Combo CRUD
-  const openAddCombo = () => { setEditingCombo(null); setComboForm(emptyComboForm); setShowComboModal(true); };
-  const openEditCombo = (c) => { setEditingCombo(c); setComboForm({ name: c.name, price: c.price, serviceIds: [...c.serviceIds] }); setShowComboModal(true); };
-  const toggleComboService = (svcId) => {
-    setComboForm(prev => ({
-      ...prev,
-      serviceIds: prev.serviceIds.includes(svcId) ? prev.serviceIds.filter(id => id !== svcId) : [...prev.serviceIds, svcId],
-    }));
-  };
-  const handleSaveCombo = async (e) => {
-    e.preventDefault();
+  const openNew = () => { setEditing({}); setModalOpen(true); };
+  const openEdit = (s) => { setEditing(s); setModalOpen(true); };
+
+  const toggleActive = async (s) => {
     try {
-      if (editingCombo) {
-        const res = await servicesApi.updateCombo(editingCombo.id, { name: comboForm.name, price: Number(comboForm.price), serviceIds: comboForm.serviceIds });
-        setCombos(prev => prev.map(c => c.id === editingCombo.id ? {
-          ...c, name: comboForm.name, price: Number(comboForm.price),
-          serviceIds: comboForm.serviceIds,
-          services: services.filter(s => comboForm.serviceIds.includes(s.id)).map(s => ({ id: s.id, name: s.name, price: s.price, duration: s.duration })),
-        } : c));
-        toast.success('Combo updated');
-      } else {
-        const res = await servicesApi.createCombo({ name: comboForm.name, price: Number(comboForm.price), serviceIds: comboForm.serviceIds });
-        setCombos(prev => [...prev, {
-          id: res.id, name: comboForm.name, price: Number(comboForm.price), isActive: true,
-          serviceIds: comboForm.serviceIds,
-          services: services.filter(s => comboForm.serviceIds.includes(s.id)).map(s => ({ id: s.id, name: s.name, price: s.price, duration: s.duration })),
-        }]);
-        toast.success('Combo created');
-      }
-    } catch (err) { toast.error(err.message || 'Failed to save combo'); }
-    setShowComboModal(false);
+      await servicesApi.update(s.id, { isActive: !s.isActive });
+      load();
+    } catch { toast.error('Could not update service'); }
   };
-  const handleDeleteCombo = async (id) => {
-    if (!window.confirm('Delete this combo package?')) return;
-    try {
-      await servicesApi.deleteCombo(id);
-      setCombos(prev => prev.filter(c => c.id !== id));
-      toast.success('Combo deleted');
-    } catch (err) { toast.error(err.message || 'Failed to delete combo'); }
-  };
-  const comboIndividualTotal = (combo) => combo.services.reduce((s, svc) => s + (svc.price || 0), 0);
-  const comboSavings = (combo) => comboIndividualTotal(combo) - combo.price;
 
   return (
-    <div>
-      <PageHeader title="Services & Menu" description="Manage your salon service offerings"
-        actions={user?.role === 'admin' ? <Button onClick={openAdd}><Plus size={16} /> Add Service</Button> : null} />
+    <>
+      <PageHeader
+        title="Services"
+        description="Items you can add to a bill"
+        actions={<Button onClick={openNew}><Plus size={16} /> Add service</Button>}
+      />
+
+      <Card className="mb-4">
+        <CardBody>
+          <div className="relative">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-400" />
+            <input value={query} onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search services..."
+              className="w-full pl-9 pr-4 py-2.5 text-sm border border-surface-200 focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-400" />
+          </div>
+        </CardBody>
+      </Card>
 
       {loading ? (
         <LoadingSpinner message="Loading services..." />
+      ) : filtered.length === 0 ? (
+        <Card><CardBody>
+          <EmptyState icon={Scissors} title="No services"
+            description="Add the services your salon offers so you can bill for them."
+            action={<Button onClick={openNew}><Plus size={16} /> Add service</Button>} />
+        </CardBody></Card>
       ) : (
-      <div className="space-y-6">
-        {grouped.map((cat) => (
-          <Card key={cat.name}>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Scissors size={16} className="text-primary-500" />
-                <h2 className="text-base font-semibold text-surface-700">{cat.name}</h2>
-                <span className="text-xs text-surface-400">({cat.services.length} services)</span>
-              </div>
-            </CardHeader>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-surface-100 text-left">
-                    <th className="px-5 py-2.5 font-medium text-surface-500">Service</th>
-                    <th className="px-5 py-2.5 font-medium text-surface-500 hidden sm:table-cell">Duration</th>
-                    <th className="px-5 py-2.5 font-medium text-surface-500">Price</th>
-                    <th className="px-5 py-2.5 font-medium text-surface-500 hidden md:table-cell">Stylists</th>
-                    <th className="px-5 py-2.5 font-medium text-surface-500">Status</th>
-                    <th className="px-5 py-2.5 font-medium text-surface-500">Actions</th>
+        <Card>
+          <CardBody className="p-0 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs text-surface-400 border-b border-surface-100">
+                  <th className="px-4 py-3 font-medium">Service</th>
+                  <th className="px-4 py-3 font-medium hidden sm:table-cell">Category</th>
+                  <th className="px-4 py-3 font-medium text-right">Price</th>
+                  <th className="px-4 py-3 font-medium text-center">Active</th>
+                  <th className="px-4 py-3 font-medium text-right">Edit</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-surface-100">
+                {filtered.map((s) => (
+                  <tr key={s.id} className={`hover:bg-surface-50 ${!s.isActive ? 'opacity-50' : ''}`}>
+                    <td className="px-4 py-3 font-medium text-surface-700">{s.name}</td>
+                    <td className="px-4 py-3 text-surface-500 hidden sm:table-cell">{s.category?.name || '—'}</td>
+                    <td className="px-4 py-3 text-right font-medium text-surface-700">{formatMoney(s.price, currency)}</td>
+                    <td className="px-4 py-3 text-center">
+                      <button onClick={() => toggleActive(s)}
+                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${s.isActive ? 'bg-primary-500' : 'bg-surface-300'}`}>
+                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${s.isActive ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                      </button>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <button onClick={() => openEdit(s)} className="p-1.5 text-surface-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg">
+                        <Pencil size={15} />
+                      </button>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {cat.services.map((svc) => (
-                    <tr key={svc.id} className="border-b border-surface-50 hover:bg-surface-50/50 transition-colors">
-                      <td className="px-5 py-3 font-medium text-surface-700">{svc.name}</td>
-                      <td className="px-5 py-3 text-surface-500 hidden sm:table-cell">{svc.duration} min</td>
-                      <td className="px-5 py-3 text-surface-600 font-medium">{'\u20B9'}{svc.price}</td>
-                      <td className="px-5 py-3 text-surface-500 hidden md:table-cell">
-                        {svc.staffNames?.length > 0
-                          ? <span className="text-xs">{svc.staffNames.join(', ')}</span>
-                          : <span className="text-xs text-surface-300">—</span>}
-                      </td>
-                      <td className="px-5 py-3"><Badge status={svc.status} /></td>
-                      <td className="px-5 py-3">
-                        <div className="flex items-center gap-1">
-                          {user?.role === 'admin' && <Button variant="ghost" size="sm" onClick={() => openEdit(svc)}><Edit size={14} /></Button>}
-                          {user?.role === 'admin' && <Button variant="ghost" size="sm" onClick={() => toggleStatus(svc.id)}>
-                            {svc.status === 'active' ? <ToggleRight size={14} className="text-success-500" /> : <ToggleLeft size={14} className="text-surface-400" />}
-                          </Button>}
-                          {user?.role === 'admin' && <Button variant="ghost" size="sm" onClick={() => handleDelete(svc.id)}><Trash2 size={14} className="text-danger-500" /></Button>}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Card>
-        ))}
-      </div>
+                ))}
+              </tbody>
+            </table>
+          </CardBody>
+        </Card>
       )}
 
-      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editing ? 'Edit Service' : 'Add New Service'}>
-        <form onSubmit={handleSave} className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-surface-700 mb-1">Service Name *</label>
-              <input required value={form.name} onChange={e => setForm({...form, name: e.target.value})}
-                className="w-full px-3 py-2 text-sm border border-surface-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-400" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-surface-700 mb-1">Category *</label>
-              <select value={form.category} onChange={e => setForm({...form, category: e.target.value})}
-                className="w-full px-3 py-2 text-sm border border-surface-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-200">
-                {CATEGORIES.map(c => <option key={c}>{c}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-surface-700 mb-1">Duration (minutes) *</label>
-              <input type="number" required min={5} value={form.duration} onChange={e => setForm({...form, duration: e.target.value})}
-                className="w-full px-3 py-2 text-sm border border-surface-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-200" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-surface-700 mb-1">Price ({'\u20B9'}) *</label>
-              <input type="number" required min={0} value={form.price} onChange={e => setForm({...form, price: e.target.value})}
-                className="w-full px-3 py-2 text-sm border border-surface-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-200" />
-            </div>
-          </div>
-          {allStaff.length > 0 && (
-            <div>
-              <label className="block text-sm font-medium text-surface-700 mb-2">Assigned Stylists</label>
-              <div className="max-h-36 overflow-y-auto border border-surface-200 rounded-lg p-2 space-y-1">
-                {allStaff.map(s => (
-                  <label key={s.id} className={`flex items-center gap-2 p-1.5 rounded-lg cursor-pointer transition-colors ${form.staffIds.includes(s.id) ? 'bg-primary-50' : 'hover:bg-surface-50'}`}>
-                    <input type="checkbox" checked={form.staffIds.includes(s.id)}
-                      onChange={() => setForm(prev => ({ ...prev, staffIds: prev.staffIds.includes(s.id) ? prev.staffIds.filter(id => id !== s.id) : [...prev.staffIds, s.id] }))}
-                      className="w-4 h-4 rounded border-surface-300 text-primary-500 focus:ring-primary-200" />
-                    <span className="text-sm text-surface-700">{s.name}</span>
-                  </label>
-                ))}
-              </div>
-              <p className="text-[10px] text-surface-400 mt-1">Select the stylists who can perform this service</p>
-            </div>
-          )}
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="outline" onClick={() => setShowModal(false)}>Cancel</Button>
-            <Button type="submit">{editing ? 'Save Changes' : 'Add Service'}</Button>
-          </div>
-        </form>
-      </Modal>
+      <ServiceModal
+        isOpen={modalOpen}
+        service={editing}
+        categories={categories}
+        currency={currency}
+        onClose={() => setModalOpen(false)}
+        onSaved={() => { setModalOpen(false); load(); }}
+      />
+    </>
+  );
+}
 
-      {/* Combo Packages Section */}
-      <div className="mt-8">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <Package size={18} className="text-primary-500" />
-            <h2 className="text-lg font-semibold text-surface-700">Combo Packages</h2>
-            <span className="text-xs text-surface-400">({combos.length} packages)</span>
-          </div>
-          {user?.role === 'admin' && <Button size="sm" onClick={openAddCombo}><Plus size={14} /> Add Combo</Button>}
+function ServiceModal({ isOpen, service, categories, currency, onClose, onSaved }) {
+  const toast = useToast();
+  const isEdit = service && service.id;
+  const [form, setForm] = useState({ name: '', price: '', duration: 30, categoryId: '' });
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setForm({
+        name: service?.name || '', price: service?.price ?? '',
+        duration: service?.duration ?? 30,
+        categoryId: service?.categoryId || categories[0]?.id || '',
+      });
+    }
+  }, [isOpen, service, categories]);
+
+  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+
+  const ensureCategoryId = async () => {
+    if (form.categoryId) return form.categoryId;
+    if (categories.length) return categories[0].id;
+    const created = await servicesApi.createCategory({ name: 'General' });
+    return created.id;
+  };
+
+  const submit = async () => {
+    if (!form.name.trim() || form.price === '') return toast.error('Name and price are required');
+    setSaving(true);
+    try {
+      const categoryId = await ensureCategoryId();
+      const payload = {
+        name: form.name.trim(),
+        price: Number(form.price) || 0,
+        duration: Number(form.duration) || 30,
+        categoryId,
+      };
+      if (isEdit) await servicesApi.update(service.id, payload);
+      else await servicesApi.create(payload);
+      toast.success(isEdit ? 'Service updated' : 'Service added');
+      onSaved();
+    } catch (err) {
+      toast.error(err.message || 'Could not save service');
+    } finally { setSaving(false); }
+  };
+
+  const field = 'w-full mt-1 text-sm border border-surface-200 py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-200';
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title={isEdit ? 'Edit service' : 'Add service'} size="sm">
+      <div className="space-y-3">
+        <div>
+          <label className="text-xs font-medium text-surface-500">Service name *</label>
+          <input value={form.name} onChange={(e) => set('name', e.target.value)} className={field} />
         </div>
-        {combos.length === 0 ? (
-          <Card><div className="p-8 text-center text-surface-400 text-sm">No combo packages yet. Create one to offer bundled services at a discount.</div></Card>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {combos.map(combo => (
-              <Card key={combo.id}>
-                <div className="p-4">
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <h3 className="text-sm font-semibold text-surface-700">{combo.name}</h3>
-                      <p className="text-xs text-surface-400 mt-0.5">{combo.services.length} services included</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-lg font-bold text-primary-600">{'\u20B9'}{combo.price}</p>
-                      {comboSavings(combo) > 0 && (
-                        <p className="text-[10px] text-green-600 font-medium">Save {'\u20B9'}{comboSavings(combo)}</p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="space-y-1.5 mb-3">
-                    {combo.services.map(svc => (
-                      <div key={svc.id} className="flex items-center justify-between text-xs">
-                        <span className="text-surface-600">{svc.name}</span>
-                        <span className="text-surface-400 line-through">{'\u20B9'}{svc.price}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="flex items-center justify-between pt-2 border-t border-surface-100">
-                    <span className="text-xs text-surface-400">
-                      {combo.services.reduce((s, svc) => s + (svc.duration || 0), 0)} min total
-                    </span>
-                    {user?.role === 'admin' && (
-                      <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="sm" onClick={() => openEditCombo(combo)}><Edit size={14} /></Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleDeleteCombo(combo.id)}><Trash2 size={14} className="text-danger-500" /></Button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Combo Modal */}
-      <Modal isOpen={showComboModal} onClose={() => setShowComboModal(false)} title={editingCombo ? 'Edit Combo Package' : 'Create Combo Package'}>
-        <form onSubmit={handleSaveCombo} className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-surface-700 mb-1">Package Name *</label>
-              <input required value={comboForm.name} onChange={e => setComboForm({...comboForm, name: e.target.value})}
-                className="w-full px-3 py-2 text-sm border border-surface-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-400" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-surface-700 mb-1">Package Price ({'\u20B9'}) *</label>
-              <input type="number" required min={0} value={comboForm.price} onChange={e => setComboForm({...comboForm, price: e.target.value})}
-                className="w-full px-3 py-2 text-sm border border-surface-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-200" />
-            </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs font-medium text-surface-500">Price ({currency}) *</label>
+            <input type="number" min="0" value={form.price} onChange={(e) => set('price', e.target.value)} className={field} />
           </div>
           <div>
-            <label className="block text-sm font-medium text-surface-700 mb-2">Select Services *</label>
-            <div className="max-h-48 overflow-y-auto border border-surface-200 rounded-lg p-2 space-y-1">
-              {services.filter(s => s.status === 'active').map(svc => (
-                <label key={svc.id} className={`flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors ${comboForm.serviceIds.includes(svc.id) ? 'bg-primary-50 border border-primary-200' : 'hover:bg-surface-50 border border-transparent'}`}>
-                  <div className="flex items-center gap-2">
-                    <input type="checkbox" checked={comboForm.serviceIds.includes(svc.id)} onChange={() => toggleComboService(svc.id)}
-                      className="w-4 h-4 rounded border-surface-300 text-primary-500 focus:ring-primary-200" />
-                    <span className="text-sm text-surface-700">{svc.name}</span>
-                    <span className="text-xs text-surface-400">({svc.duration} min)</span>
-                  </div>
-                  <span className="text-sm text-surface-500">{'\u20B9'}{svc.price}</span>
-                </label>
-              ))}
-            </div>
-            {comboForm.serviceIds.length > 0 && (
-              <div className="mt-2 flex items-center justify-between text-xs text-surface-500">
-                <span>{comboForm.serviceIds.length} selected</span>
-                <span>Individual total: {'\u20B9'}{services.filter(s => comboForm.serviceIds.includes(s.id)).reduce((sum, s) => sum + s.price, 0)}</span>
-              </div>
-            )}
+            <label className="text-xs font-medium text-surface-500">Duration (min)</label>
+            <input type="number" min="1" value={form.duration} onChange={(e) => set('duration', e.target.value)} className={field} />
           </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="outline" onClick={() => setShowComboModal(false)}>Cancel</Button>
-            <Button type="submit" disabled={comboForm.serviceIds.length < 2}>{editingCombo ? 'Save Changes' : 'Create Combo'}</Button>
+        </div>
+        {categories.length > 0 && (
+          <div>
+            <label className="text-xs font-medium text-surface-500">Category</label>
+            <select value={form.categoryId} onChange={(e) => set('categoryId', e.target.value)} className={`${field} bg-white`}>
+              {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
           </div>
-        </form>
-      </Modal>
-    </div>
+        )}
+        <div className="flex justify-end gap-2 pt-2">
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={submit} disabled={saving}>
+            {saving ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />} Save
+          </Button>
+        </div>
+      </div>
+    </Modal>
   );
 }

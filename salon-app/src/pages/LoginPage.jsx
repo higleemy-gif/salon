@@ -1,161 +1,79 @@
-import { useState, useEffect } from 'react';
-import { Navigate, Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { Sparkles, Loader2, LogIn } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { GoogleLogin } from '@react-oauth/google';
-import { Scissors, Eye, EyeOff } from 'lucide-react';
-import { settings as settingsApi } from '../services/api';
 
 export default function LoginPage() {
-  const { login, loginWithGoogle, isAuthenticated } = useAuth();
+  const { login } = useAuth();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const sessionExpired = searchParams.get('expired') === '1';
+  const location = useLocation();
+  const expired = new URLSearchParams(location.search).get('expired');
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [salonName, setSalonName] = useState('My Salon');
-  const [salonLogo, setSalonLogo] = useState(null);
 
-  useEffect(() => {
-    settingsApi.getPublic().then(d => { if (d.salonName) setSalonName(d.salonName); if (d.logo) setSalonLogo(d.logo); }).catch(() => {});
-  }, []);
-
-  if (isAuthenticated) return <Navigate to="/" replace />;
-
-  const handleSubmit = async (e) => {
+  const submit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      const result = await login(email, password);
-      if (result.requiresVerification) {
-        navigate('/verify-otp', { state: { email: result.email || email } });
-        return;
+      const result = await login(email.trim(), password);
+      if (result.success) {
+        navigate('/', { replace: true });
+      } else {
+        setError(result.error || 'Invalid email or password');
       }
-      if (!result.success) {
-        setError(result.error);
-      }
+    } catch (err) {
+      setError(err.message || 'Something went wrong');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleGoogleSuccess = async (credentialResponse) => {
-    setError('');
-    setLoading(true);
-    try {
-      const result = await loginWithGoogle(credentialResponse.credential);
-      if (!result.success) setError(result.error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const field = 'w-full mt-1 text-sm border border-surface-200 py-2.5 px-3 focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-400';
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 via-white to-accent-50 p-4">
-      <div className="w-full max-w-md">
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-2xl bg-primary-500 flex items-center justify-center mx-auto mb-4 shadow-lg overflow-hidden">
-            {salonLogo ? <img src={salonLogo} alt="" className="w-full h-full object-cover" /> : <Scissors size={28} className="text-white" />}
+    <div className="min-h-screen flex items-center justify-center bg-surface-100 p-4">
+      <div className="w-full max-w-sm">
+        <div className="flex flex-col items-center mb-6">
+          <div className="w-14 h-14 rounded-2xl bg-primary-500 flex items-center justify-center mb-3">
+            <Sparkles size={26} className="text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-surface-800">{salonName}</h1>
-          <p className="text-sm text-surface-500 mt-1">Salon Management</p>
+          <h1 className="text-xl font-bold text-surface-800">Salon Billing</h1>
+          <p className="text-sm text-surface-400">Sign in to your account</p>
         </div>
 
-        {/* Login Card */}
-        <div className="bg-white rounded-2xl shadow-card-hover border border-surface-100 p-5 sm:p-6 md:p-8">
-          <h2 className="text-lg font-semibold text-surface-800 mb-1">Welcome back</h2>
-          <p className="text-sm text-surface-400 mb-6">Sign in to your account to continue</p>
-
-          {sessionExpired && !error && (
-            <div className="mb-4 p-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-700">
-              Your session has expired. Please log in again.
-            </div>
+        <form onSubmit={submit} className="bg-white rounded-xl border border-surface-100 shadow-card p-6 space-y-4">
+          {expired && (
+            <p className="text-xs bg-warning-50 text-warning-600 rounded-lg px-3 py-2">
+              Your session expired. Please sign in again.
+            </p>
           )}
-
           {error && (
-            <div className="mb-4 p-3 rounded-lg bg-danger-50 border border-red-200 text-sm text-danger-700">
-              {error}
-            </div>
+            <p className="text-sm bg-danger-50 text-danger-600 rounded-lg px-3 py-2">{error}</p>
           )}
 
-          {/* Social Login Buttons */}
-          <div className="space-y-3 mb-5">
-            <div className="flex justify-center [&>div]:w-full">
-              <GoogleLogin
-                onSuccess={handleGoogleSuccess}
-                onError={() => setError('Google sign-in failed')}
-                text="signin_with"
-                shape="rectangular"
-                width="100%"
-              />
-            </div>
+          <div>
+            <label className="text-xs font-medium text-surface-500">Email</label>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+              required autoComplete="email" className={field} placeholder="you@salon.com" />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-surface-500">Password</label>
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
+              required autoComplete="current-password" className={field} placeholder="••••••••" />
           </div>
 
-          <div className="relative my-5">
-            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-surface-200" /></div>
-            <div className="relative flex justify-center text-xs"><span className="bg-white px-3 text-surface-400">or sign in with email</span></div>
-          </div>
+          <button type="submit" disabled={loading}
+            className="w-full flex items-center justify-center gap-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium py-2.5 rounded-lg transition-colors disabled:opacity-50">
+            {loading ? <Loader2 size={16} className="animate-spin" /> : <LogIn size={16} />}
+            Sign in
+          </button>
+        </form>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-surface-700 mb-1.5">Email</label>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@orrenza.com"
-                className="w-full px-4 py-2.5 text-sm bg-surface-50 border border-surface-200 rounded-lg
-                  focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-400
-                  placeholder:text-surface-400 transition-all"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-surface-700 mb-1.5">Password</label>
-              <div className="relative">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
-                  className="w-full px-4 py-2.5 pr-10 text-sm bg-surface-50 border border-surface-200 rounded-lg
-                    focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-400
-                    placeholder:text-surface-400 transition-all"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-surface-400 hover:text-surface-600"
-                >
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-2.5 text-sm font-medium text-white bg-primary-500 rounded-lg
-                hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-200
-                disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-            >
-              {loading ? 'Signing in...' : 'Sign In'}
-            </button>
-          </form>
-
-          <p className="mt-6 text-center text-sm text-surface-500">
-            Don&apos;t have an account?{' '}
-            <Link to="/signup" className="font-medium text-primary-600 hover:text-primary-700">Create account</Link>
-          </p>
-
-
-        </div>
+        <p className="text-center text-xs text-surface-400 mt-5">Orrenza Salon Billing</p>
       </div>
     </div>
   );

@@ -472,6 +472,9 @@ model Settings {
   // Tagline
   tagline                   String? @default("Premium Salon & Beauty Services")
 
+  // Invoice / bill PDF design (JSON string — owner-customizable template)
+  invoiceTemplate           String?
+
   @@map("settings")
 }
 
