@@ -39,6 +39,10 @@ const vipTierRoutes = require('./routes/vipTiers');
 
 const app = express();
 
+// Running behind Coolify's reverse proxy — trust it so client IPs and
+// X-Forwarded-* headers are handled correctly (needed by express-rate-limit).
+app.set('trust proxy', 1);
+
 // ── Security Middleware ──
 app.use(helmet());
 app.use(compression());
