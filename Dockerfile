@@ -18,6 +18,7 @@ COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/prisma.config.ts ./
 COPY salon-backend/package*.json ./
 COPY salon-backend/src ./src/
+COPY salon-backend/bootstrap.js ./
 
 RUN addgroup -g 1001 -S nodejs && adduser -S orrenza -u 1001
 USER orrenza
@@ -25,4 +26,5 @@ USER orrenza
 ENV NODE_ENV=production
 EXPOSE 4000
 
-CMD ["node", "src/index.js"]
+# bootstrap.js ensures the DB exists, migrates, seeds (once), then starts the API
+CMD ["node", "bootstrap.js"]
