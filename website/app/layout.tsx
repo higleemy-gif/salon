@@ -7,6 +7,7 @@ import { FloatingWhatsApp } from "@/components/FloatingWhatsApp";
 import { BookingProvider } from "@/components/BookingProvider";
 import { BranchesJsonLd } from "@/components/BranchesJsonLd";
 import { AnnouncementBar } from "@/components/AnnouncementBar";
+import { SITE_URL } from "@/lib/site";
 
 const playfair = Playfair_Display({
   subsets: ["latin"],
@@ -22,7 +23,7 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://mirrors-salon.example.com"),
+  metadataBase: new URL(SITE_URL),
   title: {
     default: "MIRRORS Unisex Salon & Academy — Gunupur & Rayagada",
     template: "%s • MIRRORS Salon & Academy"

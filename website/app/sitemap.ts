@@ -1,6 +1,5 @@
 import type { MetadataRoute } from "next";
-
-const BASE = "https://mirrors-salon.example.com";
+import { SITE_URL as BASE } from "@/lib/site";
 
 const ROUTES = ["", "/services", "/academy", "/branches", "/gallery", "/about", "/contact", "/book"];
 

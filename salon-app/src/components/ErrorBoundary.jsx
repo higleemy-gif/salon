@@ -44,7 +44,7 @@ export default class ErrorBoundary extends Component {
                 Refresh Page
               </button>
               <button
-                onClick={() => { this.setState({ hasError: false, error: null }); window.location.href = '/'; }}
+                onClick={() => { this.setState({ hasError: false, error: null }); window.location.href = import.meta.env.BASE_URL; }}
                 className="inline-flex items-center gap-2 px-5 py-2.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors font-medium"
               >
                 <Home className="w-4 h-4" />

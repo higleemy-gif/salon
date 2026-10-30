@@ -1,0 +1,57 @@
+# Rendered by the nginx image entrypoint (envsubst). Only defined env vars such as
+# ${BACKEND_URL} are replaced; nginx variables like $uri are left alone.
+server {
+  listen 80;
+  server_name _;
+  root /usr/share/nginx/html;
+
+  gzip on;
+  gzip_types text/plain text/css application/javascript application/json image/svg+xml;
+  gzip_min_length 1024;
+
+  # Settings saves carry the salon logo (up to ~700 KB once encoded).
+  client_max_body_size 2m;
+
+  # Docker's internal DNS. Resolving per request (via the variable below) means
+  # nginx still starts if the backend is down, and follows it across redeploys.
+  resolver 127.0.0.11 valid=10s ipv6=off;
+  set $backend ${BACKEND_URL};
+
+  # ── API -> salon-backend ──
+  location /api/ {
+    proxy_pass $backend;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    # Pass the proxy's X-Forwarded-For through unchanged, so the backend
+    # (trust proxy = 1) still sees the real client IP for rate limiting.
+    proxy_set_header X-Forwarded-For $http_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
+    proxy_set_header X-Real-IP $http_x_real_ip;
+    proxy_read_timeout 60s;
+  }
+
+  # ── Billing dashboard (single-page app) ──
+  location = /admin {
+    return 301 /admin/;
+  }
+  location /admin/assets/ {
+    expires 1y;
+    add_header Cache-Control "public, immutable";
+    try_files $uri =404;
+  }
+  location /admin/ {
+    add_header Cache-Control "no-cache";
+    try_files $uri /admin/index.html;
+  }
+
+  # ── Public website (static export) ──
+  location /_next/static/ {
+    expires 1y;
+    add_header Cache-Control "public, immutable";
+    try_files $uri =404;
+  }
+  location / {
+    try_files $uri $uri.html $uri/ =404;
+  }
+  error_page 404 /404.html;
+}

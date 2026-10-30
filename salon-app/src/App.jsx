@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './components/ui/Toast';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -18,12 +18,14 @@ export default function App() {
     <ErrorBoundary>
       <AuthProvider>
         <ToastProvider>
-          <BrowserRouter>
+          {/* basename = Vite base ("/admin/"), so routes below are relative to /admin */}
+          <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '')}>
             <Routes>
               <Route path="/login" element={<LoginPage />} />
               <Route element={<ProtectedRoute />}>
                 <Route element={<AppLayout />}>
                   <Route index element={<DashboardPage />} />
+                  <Route path="dashboard" element={<Navigate to="/" replace />} />
                   <Route path="bill" element={<NewBillPage />} />
                   <Route path="bills" element={<BillsPage />} />
                   <Route path="customers" element={<CustomersPage />} />

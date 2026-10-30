@@ -36,7 +36,7 @@ async function request(endpoint, options = {}) {
   if (res.status === 401 && !AUTH_ENDPOINTS.some(e => endpoint.startsWith(e))) {
     localStorage.removeItem('glowdesk_token');
     localStorage.removeItem('glowdesk_user');
-    window.location.href = '/login?expired=1';
+    window.location.href = `${import.meta.env.BASE_URL}login?expired=1`;
     throw new Error('Session expired. Please log in again.');
   }
 

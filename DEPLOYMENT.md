@@ -146,7 +146,28 @@ use the **Billing** and **Appointments** pages; the owner role has access to eve
 
 ---
 
-## Deploying on Coolify
+## Deploying on Coolify (one domain: website + dashboard + API)
+
+| URL | Serves |
+|---|---|
+| `https://<domain>/` | Parlour website (`website/`, Next.js static export) |
+| `https://<domain>/admin/` | Billing dashboard (`salon-app/`) |
+| `https://<domain>/api/` | Backend, proxied by nginx inside the frontend container |
+
+**Frontend (`salon-frontend` app)**: Base Directory `/`, Dockerfile `/Dockerfile.web`.
+- Domain: `https://<domain>` (and `https://www.<domain>` if wanted).
+- Build variable `NEXT_PUBLIC_SITE_URL` = `https://<domain>` (used for SEO, sitemap, robots.txt).
+- Leave `VITE_API_URL` unset so the dashboard calls `/api` on the same domain.
+- `BACKEND_URL` (runtime, optional) defaults to `http://salon-api:4000`.
+
+**Backend (`salon-backend` app)**: set **Network Aliases** to `salon-api` so the frontend
+container can reach it, and set `FRONTEND_URL` = `https://<domain>` (browsers still send an
+Origin header on same-site API calls, so CORS must allow the domain).
+
+**DNS**: an `A` record for `<domain>` (and `www`) pointing to the server IP. Coolify issues
+the HTTPS certificate automatically once DNS resolves.
+
+### Backend details
 
 **Backend (`salon-backend` app)**, built from the root `Dockerfile`:
 - Environment variables: `DATABASE_URL` (the `salon-db` internal URL), `JWT_SECRET`,
@@ -155,10 +176,9 @@ use the **Billing** and **Appointments** pages; the owner role has access to eve
 - Set the `SEED_*` variables before the very first start. They are only used on an empty database.
 - **Persistent Storage**: add a volume with destination `/data/whatsapp-auth`.
 
-**Frontend (`salon-frontend` app)**, built from `salon-app/Dockerfile`:
-- Add `VITE_API_URL` = the backend's public `https://` URL and tick **Available at Buildtime**.
-  The build fails if it is missing.
-- Redeploy the frontend whenever the backend URL changes.
+**Standalone dashboard (alternative)**: `salon-app/Dockerfile` still builds the dashboard on
+its own (served under `/admin/`). It requires `VITE_API_URL` = the backend's public URL as a
+build variable.
 
 ---
 

@@ -1,0 +1,40 @@
+# One container for the whole public domain:
+#   /        -> parlour website (website/, Next.js static export)
+#   /admin/  -> billing dashboard (salon-app/, Vite build with base /admin/)
+#   /api/    -> proxied to the salon-backend container (see BACKEND_URL)
+# Build context: repo root.
+
+# ── Website ──
+FROM node:20-alpine AS website
+WORKDIR /app
+COPY website/package*.json ./
+RUN npm ci
+COPY website/ ./
+# Public URL used in SEO metadata, sitemap.xml and robots.txt.
+ARG NEXT_PUBLIC_SITE_URL
+ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN npm run build
+
+# ── Billing dashboard ──
+FROM node:20-alpine AS admin
+WORKDIR /app
+COPY salon-app/package*.json ./
+RUN npm ci
+COPY salon-app/ ./
+# Leave VITE_API_URL empty to call the API on the same domain (/api), which
+# nginx below proxies to the backend. Only set it to use a different API host.
+ARG VITE_API_URL=
+ENV VITE_API_URL=$VITE_API_URL
+RUN npm run build
+
+# ── Serve ──
+FROM nginx:alpine
+COPY --from=website /app/out /usr/share/nginx/html
+COPY --from=admin /app/dist /usr/share/nginx/html/admin
+# nginx's entrypoint renders /etc/nginx/templates/*.template with env vars at start.
+COPY deploy/nginx/default.conf.template /etc/nginx/templates/default.conf.template
+# Internal address of the backend on the Coolify Docker network. "salon-api" is a
+# network alias set on the salon-backend app; override at runtime if it differs.
+ENV BACKEND_URL=http://salon-api:4000
+EXPOSE 80
