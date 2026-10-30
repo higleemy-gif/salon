@@ -1,0 +1,20 @@
+node_modules/
+.next/
+out/
+.env*
+!.env.example
+.DS_Store
+*.log
+*.tsbuildinfo
+next-env.d.ts
+.vercel
+# scratch/probe artefacts
+probe.txt
+headers.txt
+out.html
+_b.log
+
+# Videos are hosted on Cloudflare R2 and streamed directly; do not commit.
+videos/
+mirrors-transcoded/
+out
