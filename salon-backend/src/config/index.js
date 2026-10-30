@@ -21,7 +21,12 @@ module.exports = {
   jwtSecret,
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
   nodeEnv,
-  frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
+  frontendUrl: (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/+$/, ''),
+  // Extra allowed browser origins, comma-separated (e.g. "https://a.com,https://www.a.com").
+  corsOrigins: (process.env.CORS_ORIGINS || '')
+    .split(',')
+    .map((o) => o.trim().replace(/\/+$/, ''))
+    .filter(Boolean),
   googleClientId: process.env.GOOGLE_CLIENT_ID || '',
   facebookAppId: process.env.FACEBOOK_APP_ID || '',
 };

@@ -4,11 +4,20 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
-# VITE_API_URL is inlined by Vite at build time. Default points at the deployed
-# backend; override by passing --build-arg VITE_API_URL=... if the backend URL changes.
-ARG VITE_API_URL=http://nsewpvj7asfhnlq4cgmyrfnc.187.53.143.234.sslip.io
+# VITE_API_URL is inlined by Vite at build time, so it must be passed as a build arg
+# (on Coolify: add VITE_API_URL as an environment variable with "Available at Buildtime"
+# enabled). Use the backend's https:// URL; an http:// API called from an https://
+# page is blocked by browsers as mixed content.
+ARG VITE_API_URL
 ENV VITE_API_URL=$VITE_API_URL
-RUN npm run build
+RUN if [ -z "$VITE_API_URL" ]; then \
+      echo "ERROR: VITE_API_URL build arg is required (e.g. https://api.example.com)" >&2; exit 1; \
+    fi; \
+    case "$VITE_API_URL" in \
+      http://localhost*|http://127.0.0.1*) ;; \
+      http://*) echo "WARNING: VITE_API_URL uses http://. Browsers will block it if the app is served over https." >&2 ;; \
+    esac; \
+    npm run build
 
 FROM nginx:alpine
 COPY --from=build /app/dist /usr/share/nginx/html

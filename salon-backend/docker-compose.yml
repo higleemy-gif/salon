@@ -33,6 +33,9 @@ services:
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
     ports:
       - "${API_PORT:-4000}:4000"
+    volumes:
+      - whatsapp-auth:/data/whatsapp-auth
 
 volumes:
   pgdata:
+  whatsapp-auth:

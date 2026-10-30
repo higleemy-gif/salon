@@ -71,15 +71,14 @@ npx prisma generate
 node prisma/seed.js           # loads sample services, staff, and the owner login
 ```
 
-When the seed finishes it prints the logins. The one for your client:
+Set the owner login before seeding with `SEED_OWNER_EMAIL` and `SEED_OWNER_PASSWORD`
+(and `SEED_ADMIN_PASSWORD`, `SEED_STYLIST_PASSWORD`, `SEED_RECEPTIONIST_PASSWORD`).
+With `NODE_ENV=production`, any of these passwords left unset is replaced by a random one.
+When the seed finishes it prints the logins once, so copy them from the output (or the
+container logs on Coolify).
 
-```
-Owner: kiran@orrenza.salon / Kiran@2026
-```
-
-> This owner account is pre-verified, so she can log in immediately — no email setup needed.
-> Have her change the password after first login (Settings → Change password), or edit the
-> seed to use her real email/password before running it.
+> The owner account is pre-verified, so she can log in immediately — no email setup needed.
+> Have her change the password after first login (Settings → Change password).
 
 **Optional:** skip the demo data. If you want a clean salon with no fake customers,
 run only `migrate deploy` + `generate`, then create her account yourself in Supabase or
@@ -128,7 +127,7 @@ tweak `prisma/seed.js` to seed just Settings + the owner user.
 
 Send her:
 - The site link: `https://your-salon.netlify.app`
-- Her login: `kiran@orrenza.salon` / `Kiran@2026` (ask her to change the password)
+- Her login: the `SEED_OWNER_EMAIL` and password printed by the seed (ask her to change the password)
 
 She can open it on a desktop or phone browser — the UI is responsive. For billing she'll
 use the **Billing** and **Appointments** pages; the owner role has access to everything.
@@ -138,12 +137,28 @@ use the **Billing** and **Appointments** pages; the owner role has access to eve
 ## Optional extras (not required for billing day-one)
 
 - **WhatsApp messages (Baileys):** go to Settings → WhatsApp in the app and scan the QR code.
-  Note: Railway's disk is temporary, so a redeploy drops the WhatsApp session and you must
-  re-scan. To keep it connected across redeploys, attach a Railway **Volume** mounted at
-  `salon-backend/whatsapp-auth`.
+  The Docker image stores the session in `/data/whatsapp-auth` (`WHATSAPP_AUTH_DIR`).
+  Container disks are temporary, so attach a persistent volume at that path or a redeploy
+  drops the session and you must re-scan.
 - **Email OTP for new sign-ups:** only needed if she'll invite staff who self-register. Add the
   `SMTP_*` variables (see `.env.production.example`). Otherwise create staff from the Staff page.
 - **Custom domain:** both Netlify and Railway let you attach one (e.g. `app.hersalon.com`).
+
+---
+
+## Deploying on Coolify
+
+**Backend (`salon-backend` app)**, built from the root `Dockerfile`:
+- Environment variables: `DATABASE_URL` (the `salon-db` internal URL), `JWT_SECRET`,
+  `FRONTEND_URL` (the exact frontend URL, e.g. `https://app.example.com`, no trailing slash),
+  and optionally `CORS_ORIGINS` for extra domains such as `https://www.example.com`.
+- Set the `SEED_*` variables before the very first start. They are only used on an empty database.
+- **Persistent Storage**: add a volume with destination `/data/whatsapp-auth`.
+
+**Frontend (`salon-frontend` app)**, built from `salon-app/Dockerfile`:
+- Add `VITE_API_URL` = the backend's public `https://` URL and tick **Available at Buildtime**.
+  The build fails if it is missing.
+- Redeploy the frontend whenever the backend URL changes.
 
 ---
 
@@ -152,7 +167,7 @@ use the **Billing** and **Appointments** pages; the owner role has access to eve
 | Symptom | Fix |
 |---|---|
 | Login page loads but login hangs / network error | `VITE_API_URL` is wrong or missing on Netlify, or backend is down. Check `/api/health`. |
-| "Not allowed by CORS" in the browser console | `FRONTEND_URL` on Railway must exactly match the Netlify URL; redeploy backend. |
+| "Not allowed by CORS" in the browser console | `FRONTEND_URL` (or `CORS_ORIGINS`) on the backend must exactly match the frontend URL, including `https://`; redeploy backend. The backend logs the blocked origin and prints the allowed list on startup. |
 | Migrations fail to connect | Use the **Session pooler** connection string (port 5432), and check the password in the URL. |
 | Server crashes on boot | Ensure `JWT_SECRET` is 32+ chars and `DATABASE_URL` is set (production refuses weak/missing values). |
 

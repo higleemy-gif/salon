@@ -108,15 +108,11 @@ Open **http://localhost:5173** in your browser.
 
 ---
 
-## Default Credentials
+## Seeded Logins
 
-| Role | Email | Password |
-|---|---|---|
-| Admin | `admin@orrenza.com` | `admin123` |
-| Stylist | `priya@orrenza.com` | `stylist123` |
-| Receptionist | `reception@orrenza.com` | `recep123` |
+The seed creates an owner, an admin (`admin@orrenza.com`), stylists (`priya@`, `rahul@`, `anita@orrenza.com`) and a receptionist (`reception@orrenza.com`).
 
-> **Important:** Change these passwords immediately in production by setting `SEED_ADMIN_PASSWORD`, `SEED_STYLIST_PASSWORD`, and `SEED_RECEPTIONIST_PASSWORD` in your `.env` before running the seed script.
+Passwords come from `SEED_OWNER_PASSWORD`, `SEED_ADMIN_PASSWORD`, `SEED_STYLIST_PASSWORD` and `SEED_RECEPTIONIST_PASSWORD`. With `NODE_ENV=production`, any that are unset get a random password, printed once at the end of the seed output. In development the unset ones fall back to simple defaults (`owner123`, `admin123`, `stylist123`, `recep123`).
 
 ---
 
@@ -157,9 +153,14 @@ Build and serve the frontend separately, or use a reverse proxy (Nginx/Caddy) to
 | `PORT` | API server port | `4000` |
 | `NODE_ENV` | `development` or `production` | `development` |
 | `FRONTEND_URL` | CORS-allowed origin | `http://localhost:5173` |
-| `SEED_ADMIN_PASSWORD` | Admin password for seed script | `admin123` |
-| `SEED_STYLIST_PASSWORD` | Stylist password for seed script | `stylist123` |
-| `SEED_RECEPTIONIST_PASSWORD` | Receptionist password for seed script | `recep123` |
+| `SEED_OWNER_EMAIL` | Owner login email for seed script | `kiran@orrenza.salon` |
+| `SEED_OWNER_PASSWORD` | Owner password for seed script | random in production |
+| `SEED_ADMIN_PASSWORD` | Admin password for seed script | random in production |
+| `SEED_STYLIST_PASSWORD` | Stylist password for seed script | random in production |
+| `SEED_RECEPTIONIST_PASSWORD` | Receptionist password for seed script | random in production |
+| `CORS_ORIGINS` | Extra allowed origins, comma-separated | — |
+| `WHATSAPP_AUTH_DIR` | Where the WhatsApp session is stored (mount a volume here) | `salon-backend/whatsapp-auth` |
+| `DB_ADMIN_URL` | Optional superuser URL used only to create the database if missing | — |
 
 ### Frontend (`salon-app/.env`)
 

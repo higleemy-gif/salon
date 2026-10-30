@@ -18,10 +18,18 @@ COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/prisma.config.ts ./
 COPY package*.json ./
 COPY src ./src/
+COPY bootstrap.js ./
 
-RUN addgroup -g 1001 -S nodejs && adduser -S orrenza -u 1001
+RUN addgroup -g 1001 -S nodejs && adduser -S orrenza -u 1001 -G nodejs \
+ && mkdir -p /data/whatsapp-auth && chown -R orrenza:nodejs /data
 USER orrenza
 
+ENV NODE_ENV=production
+# WhatsApp session lives here. Mount a persistent volume at /data/whatsapp-auth
+# so the session survives redeploys.
+ENV WHATSAPP_AUTH_DIR=/data/whatsapp-auth
+VOLUME ["/data/whatsapp-auth"]
 EXPOSE 4000
 
-CMD ["node", "src/index.js"]
+# Same startup as the root Dockerfile: ensure DB, migrate, seed once, start API.
+CMD ["node", "bootstrap.js"]

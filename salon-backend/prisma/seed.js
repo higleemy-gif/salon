@@ -3,6 +3,31 @@ const { PrismaClient } = require('@prisma/client');
 const { Pool } = require('pg');
 const { PrismaPg } = require('@prisma/adapter-pg');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
+
+// ── Seed passwords ──
+// Read from SEED_* env vars. In production, any password that isn't set gets a
+// random one (printed once below) so a fresh deploy never ships with known logins.
+// Outside production the old convenience defaults are kept for local dev.
+const IS_PROD = process.env.NODE_ENV === 'production';
+const seedCredentials = [];
+
+function seedPassword(envVar, devDefault, email) {
+  let password = process.env[envVar];
+  let generated = false;
+  if (!password) {
+    if (IS_PROD) {
+      password = crypto.randomBytes(12).toString('base64url');
+      generated = true;
+    } else {
+      password = devDefault;
+    }
+  }
+  seedCredentials.push({ email, password: generated || !IS_PROD ? password : `(from ${envVar})` });
+  return password;
+}
+
+const OWNER_EMAIL = process.env.SEED_OWNER_EMAIL || 'kiran@orrenza.salon';
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const adapter = new PrismaPg(pool);
@@ -49,7 +74,7 @@ async function main() {
   });
 
   // ── Admin User ──
-  const adminPassword = await bcrypt.hash(process.env.SEED_ADMIN_PASSWORD || 'admin123', 12);
+  const adminPassword = await bcrypt.hash(seedPassword('SEED_ADMIN_PASSWORD', 'admin123', 'admin@orrenza.com'), 12);
   const admin = await prisma.user.upsert({
     where: { email: 'admin@orrenza.com' },
     update: {},
@@ -63,13 +88,13 @@ async function main() {
   });
 
   // ── Owner User ──
-  const ownerPassword = await bcrypt.hash('Kiran@2026', 12);
+  const ownerPassword = await bcrypt.hash(seedPassword('SEED_OWNER_PASSWORD', 'owner123', OWNER_EMAIL), 12);
   const owner = await prisma.user.upsert({
-    where: { email: 'kiran@orrenza.salon' },
+    where: { email: OWNER_EMAIL },
     update: {},
     create: {
-      name: 'Kiran',
-      email: 'kiran@orrenza.salon',
+      name: process.env.SEED_OWNER_NAME || 'Kiran',
+      email: OWNER_EMAIL,
       password: ownerPassword,
       role: 'OWNER',
       isVerified: true,
@@ -77,7 +102,7 @@ async function main() {
   });
 
   // ── Stylists ──
-  const stylistPassword = await bcrypt.hash(process.env.SEED_STYLIST_PASSWORD || 'stylist123', 12);
+  const stylistPassword = await bcrypt.hash(seedPassword('SEED_STYLIST_PASSWORD', 'stylist123', 'priya/rahul/anita@orrenza.com'), 12);
   const stylists = [];
   const stylistData = [
     { name: 'Priya Sharma', email: 'priya@orrenza.com', phone: '+91 98765 11111' },
@@ -95,7 +120,7 @@ async function main() {
   }
 
   // ── Receptionist ──
-  const recepPassword = await bcrypt.hash(process.env.SEED_RECEPTIONIST_PASSWORD || 'recep123', 12);
+  const recepPassword = await bcrypt.hash(seedPassword('SEED_RECEPTIONIST_PASSWORD', 'recep123', 'reception@orrenza.com'), 12);
   await prisma.user.upsert({
     where: { email: 'reception@orrenza.com' },
     update: {},
@@ -455,11 +480,8 @@ async function main() {
   console.log(`   👥 ${custCount} customers`);
   console.log(`   💬 ${msgCount} messages`);
   console.log('');
-  console.log('Login credentials:');
-  console.log('  Owner:        kiran@orrenza.salon / Kiran@2026');
-  console.log('  Admin:        admin@orrenza.com / admin123');
-  console.log('  Receptionist: reception@orrenza.com / recep123');
-  console.log('  Stylist:      priya@orrenza.com / stylist123');
+  console.log('Login credentials (shown once, change them after first login):');
+  for (const c of seedCredentials) console.log(`  ${c.email} / ${c.password}`);
 }
 
 main()

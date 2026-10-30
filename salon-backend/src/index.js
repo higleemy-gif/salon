@@ -47,41 +47,31 @@ app.set('trust proxy', 1);
 app.use(helmet());
 app.use(compression());
 
-// CORS configuration - allow multiple origins for open-source deployment
-const allowedOrigins = [
-  config.frontendUrl, // From environment (localhost for dev)
-  'https://mysalonmanagement.netlify.app', // Production Netlify site
-  'http://localhost:5173', // Local development
-  'http://localhost:5174', // Local website
-  'http://localhost:5175', // Local app
-  /\.netlify\.app$/, // Allow all Netlify domains
-];
+// CORS: only the configured frontend (FRONTEND_URL) plus any extra origins in
+// CORS_ORIGINS. Localhost dev ports are allowed only outside production.
+const allowedOrigins = new Set([config.frontendUrl, ...config.corsOrigins]);
+if (config.nodeEnv !== 'production') {
+  ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175']
+    .forEach((o) => allowedOrigins.add(o));
+}
+console.log(`🌐 CORS allowed origins: ${[...allowedOrigins].join(', ')}`);
 
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (mobile apps, etc.)
+    // Allow requests with no origin (server-to-server, curl, health checks)
     if (!origin) return callback(null, true);
-
-    // Check if origin is in allowed list
-    const isAllowed = allowedOrigins.some(allowedOrigin => {
-      if (typeof allowedOrigin === 'string') {
-        return allowedOrigin === origin;
-      } else if (allowedOrigin instanceof RegExp) {
-        return allowedOrigin.test(origin);
-      }
-      return false;
-    });
-
-    if (isAllowed) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
+    if (allowedOrigins.has(origin)) return callback(null, true);
+    console.warn(`CORS blocked origin: ${origin}`);
+    callback(new Error('Not allowed by CORS'));
   },
   credentials: true
 }));
 
-app.use(express.json({ limit: '10kb' }));
+// Settings carries the salon logo as a base64 data URL (UI caps the file at 500 KB,
+// ~670 KB once encoded) plus the invoice template JSON, so it needs a bigger limit.
+// This parser runs first for /api/settings; the global one then skips parsed bodies.
+app.use('/api/settings', express.json({ limit: '1mb' }));
+app.use(express.json({ limit: '100kb' }));
 
 // ── Request Logging ──
 if (config.nodeEnv === 'production') {

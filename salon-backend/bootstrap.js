@@ -13,9 +13,11 @@ const { execSync } = require('child_process');
 const APP_URL = process.env.DATABASE_URL;
 
 function adminConnString(appUrl) {
-  // Connect as the superuser role to the default `postgres` db to create the target db.
+  // DB_ADMIN_URL lets you supply a superuser connection explicitly. Otherwise reuse
+  // the app's own credentials against the default `postgres` database, which works
+  // on a standard Postgres (e.g. Coolify) where the app user owns or can create DBs.
+  if (process.env.DB_ADMIN_URL) return process.env.DB_ADMIN_URL;
   const u = new URL(appUrl);
-  u.username = 'supabase_admin';
   u.pathname = '/postgres';
   return u.toString();
 }
@@ -24,15 +26,35 @@ function targetDbName(appUrl) {
   return decodeURIComponent(new URL(appUrl).pathname.replace(/^\//, '')) || 'salon';
 }
 
+async function databaseExists() {
+  // Connecting straight to the target DB is the cheapest check and needs no extra
+  // privileges. Postgres error 3D000 = "database does not exist".
+  const c = new Client({ connectionString: APP_URL, connectionTimeoutMillis: 15000 });
+  try {
+    await c.connect();
+    return true;
+  } catch (e) {
+    if (e.code === '3D000') return false;
+    throw e;
+  } finally {
+    await c.end().catch(() => {});
+  }
+}
+
 async function ensureDatabase() {
   if (!APP_URL) { console.error('DATABASE_URL not set'); return; }
   const dbName = targetDbName(APP_URL);
+  if (await databaseExists()) {
+    console.log(`ℹ️  Database "${dbName}" already exists`);
+    return;
+  }
   const appUser = decodeURIComponent(new URL(APP_URL).username) || 'postgres';
   const admin = new Client({ connectionString: adminConnString(APP_URL), connectionTimeoutMillis: 15000 });
   await admin.connect();
   const exists = await admin.query('SELECT 1 FROM pg_database WHERE datname=$1', [dbName]);
   if (exists.rowCount === 0) {
-    await admin.query(`CREATE DATABASE "${dbName}" OWNER "${appUser}"`);
+    const ident = (s) => `"${s.replace(/"/g, '""')}"`;
+    await admin.query(`CREATE DATABASE ${ident(dbName)} OWNER ${ident(appUser)}`);
     console.log(`✅ Created database "${dbName}" (owner ${appUser})`);
   } else {
     console.log(`ℹ️  Database "${dbName}" already exists`);

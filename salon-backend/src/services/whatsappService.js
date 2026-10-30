@@ -10,7 +10,10 @@ const pino = require('pino');
 const path = require('path');
 const fs = require('fs');
 
-const AUTH_DIR = path.join(__dirname, '..', '..', 'whatsapp-auth');
+// Override with WHATSAPP_AUTH_DIR (e.g. a mounted volume) so the session survives redeploys.
+const AUTH_DIR = process.env.WHATSAPP_AUTH_DIR
+  ? path.resolve(process.env.WHATSAPP_AUTH_DIR)
+  : path.join(__dirname, '..', '..', 'whatsapp-auth');
 const MAX_RECONNECT = 5;
 
 // ── Rate limiting: 1 message per 3 seconds ──
