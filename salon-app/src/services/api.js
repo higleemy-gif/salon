@@ -170,6 +170,7 @@ export const messages = {
 // ── Dashboard ──
 export const dashboard = {
   summary: () => request('/dashboard/summary'),
+  sales: (period = 'week') => request(`/dashboard/sales?period=${encodeURIComponent(period)}`),
   revenueChart: (months = 6) => request(`/dashboard/revenue-chart?months=${months}`),
   topServices: (limit = 5) => request(`/dashboard/top-services?limit=${limit}`),
   stylistPerformance: () => request('/dashboard/stylist-performance'),
