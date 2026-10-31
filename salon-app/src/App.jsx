@@ -11,6 +11,7 @@ import BillsPage from './pages/BillsPage';
 import CustomersPage from './pages/CustomersPage';
 import ServicesPage from './pages/ServicesPage';
 import SettingsPage from './pages/SettingsPage';
+import WhatsAppPage from './pages/WhatsAppPage';
 import NotFoundPage from './pages/NotFoundPage';
 
 export default function App() {
@@ -31,6 +32,7 @@ export default function App() {
                   <Route path="customers" element={<CustomersPage />} />
                   <Route path="services" element={<ServicesPage />} />
                   <Route path="settings" element={<SettingsPage />} />
+                  <Route path="whatsapp" element={<WhatsAppPage />} />
                 </Route>
               </Route>
               <Route path="*" element={<NotFoundPage />} />

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { FileText, Send, Download, Eye, Plus, Loader2 } from 'lucide-react';
+import { FileText, Send, Download, Eye, Plus, Loader2, MessageCircle } from 'lucide-react';
 import PageHeader from '../components/ui/PageHeader';
 import { Card, CardBody } from '../components/ui/Card';
 import Button from '../components/ui/Button';
@@ -8,7 +8,7 @@ import EmptyState from '../components/ui/EmptyState';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import { useToast } from '../components/ui/Toast';
 import { useSettings } from '../context/SettingsContext';
-import { invoices as invoicesApi } from '../services/api';
+import { invoices as invoicesApi, whatsappCrm } from '../services/api';
 import { formatMoney, formatDate } from '../lib/format';
 import { sendBillToCustomer, downloadBill, previewBill } from '../lib/shareBill';
 
@@ -28,6 +28,25 @@ export default function BillsPage() {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [busyId, setBusyId] = useState(null);
+  const [crmBusyId, setCrmBusyId] = useState(null);
+  // Show the "Send via WhatsApp CRM" button only when the CRM is connected and a template is set.
+  const [crmReady, setCrmReady] = useState(false);
+
+  useEffect(() => {
+    whatsappCrm.status()
+      .then((s) => setCrmReady(Boolean(s.connected && s.settings?.waCrmBillTemplate)))
+      .catch(() => setCrmReady(false));
+  }, []);
+
+  const handleCrmSend = async (inv) => {
+    setCrmBusyId(inv.id);
+    try {
+      await whatsappCrm.sendBill(inv.id);
+      toast.success('Bill message sent on WhatsApp');
+    } catch (e) {
+      toast.error(e.message || 'Could not send on WhatsApp');
+    } finally { setCrmBusyId(null); }
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -144,6 +163,12 @@ export default function BillsPage() {
                           className="p-1.5 text-surface-400 hover:text-success-600 hover:bg-success-50 rounded-lg" title="Send to customer">
                           {busyId === inv.id ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
                         </button>
+                        {crmReady && (
+                          <button onClick={() => handleCrmSend(inv)} disabled={crmBusyId === inv.id}
+                            className="p-1.5 text-surface-400 hover:text-success-600 hover:bg-success-50 rounded-lg" title="Send via WhatsApp CRM">
+                            {crmBusyId === inv.id ? <Loader2 size={16} className="animate-spin" /> : <MessageCircle size={16} />}
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

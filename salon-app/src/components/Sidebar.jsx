@@ -9,6 +9,7 @@ import {
   Menu,
   X,
   Sparkles,
+  MessageCircle,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useSettings } from '../context/SettingsContext';
@@ -19,6 +20,7 @@ const navItems = [
   { to: '/bills', icon: FileText, label: 'Bills' },
   { to: '/customers', icon: Users, label: 'Customers' },
   { to: '/services', icon: Scissors, label: 'Services' },
+  { to: '/whatsapp', icon: MessageCircle, label: 'WhatsApp' },
   { to: '/settings', icon: Settings, label: 'Settings' },
 ];
 

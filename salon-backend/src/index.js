@@ -36,6 +36,7 @@ const queueRoutes = require('./routes/queue');
 const commissionRoutes = require('./routes/commissions');
 const referralRoutes = require('./routes/referrals');
 const vipTierRoutes = require('./routes/vipTiers');
+const whatsappCrmRoutes = require('./routes/whatsappCrm');
 
 const app = express();
 
@@ -155,6 +156,7 @@ app.use('/api/queue', queueRoutes);
 app.use('/api/commissions', commissionRoutes);
 app.use('/api/referrals', referralRoutes);
 app.use('/api/vip-tiers', vipTierRoutes);
+app.use('/api/whatsapp-crm', whatsappCrmRoutes);
 
 // ── Error handler ──
 app.use(errorHandler);

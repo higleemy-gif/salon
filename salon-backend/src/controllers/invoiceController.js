@@ -1,4 +1,5 @@
 const prisma = require('../config/db');
+const { autoSendBill } = require('../services/billWhatsApp');
 
 function generateInvoiceNumber() {
   const now = new Date();
@@ -168,6 +169,9 @@ const invoiceController = {
       }
 
       res.status(201).json(invoice);
+
+      // Optional WhatsApp CRM automation: runs after the response, never blocks billing.
+      setImmediate(() => autoSendBill(invoice.id));
     } catch (err) { next(err); }
   },
 

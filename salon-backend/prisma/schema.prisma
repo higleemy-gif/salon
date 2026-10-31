@@ -396,6 +396,11 @@ model Settings {
   whatsappApiKey String?
   smsApiKey      String?
 
+  // WhatsApp CRM (whatsapp-crm/) automation. The CRM URL and API key are env vars.
+  waCrmAutoSendBill     Boolean @default(false) // send an approved template after every bill
+  waCrmBillTemplate     String? // Meta template name, body vars: {{1}} name {{2}} salon {{3}} bill no {{4}} amount
+  waCrmTemplateLanguage String  @default("en")
+
   // Message templates
   reminderTemplate       String?
   birthdayTemplate       String?

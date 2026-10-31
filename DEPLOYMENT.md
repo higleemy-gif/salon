@@ -182,6 +182,40 @@ build variable.
 
 ---
 
+## WhatsApp CRM (`whatsapp-crm/`)
+
+`whatsapp-crm/` is [wacrm](https://github.com/ArnasDon/wacrm) (MIT licence, kept in
+`whatsapp-crm/LICENSE`): inbox, automations, broadcasts and chatbot flows on the
+**official Meta WhatsApp Cloud API**. The billing dashboard's **WhatsApp** page links into
+it and can send each bill to the customer automatically.
+
+It is a separate app and needs:
+1. **Supabase** (Supabase Cloud, or a Supabase service in Coolify) with the migrations in
+   `whatsapp-crm/supabase/migrations` applied (`supabase db push`).
+2. **A Meta WhatsApp Business account**: a Meta app (App Secret), a WhatsApp Business
+   phone number, and a permanent access token. These are entered in the CRM's
+   Settings → WhatsApp after it is running.
+3. **Its own HTTPS address**, e.g. `https://crm.<domain>`. It cannot run under a path
+   like `/admin`. Meta's webhook URL is `https://crm.<domain>/api/whatsapp/webhook`.
+
+Coolify app: Base Directory `/whatsapp-crm`, Dockerfile build, port 3000. Variables:
+`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (both build time),
+`SUPABASE_SERVICE_ROLE_KEY`, `ENCRYPTION_KEY` (64 hex chars), `META_APP_SECRET`,
+`NEXT_PUBLIC_SITE_URL`, and `AUTOMATION_CRON_SECRET` if automations use Wait steps
+(then add a Coolify scheduled task calling `/api/automations/cron` and `/api/flows/cron`
+with header `x-cron-secret`). See `whatsapp-crm/.env.local.example` and `whatsapp-crm/docs/`.
+
+**Connect billing → CRM**
+1. In the CRM: Settings → API keys → new key with scopes `contacts:write` and `messages:send`.
+2. On `salon-backend` set `WACRM_URL` (and `WACRM_PUBLIC_URL` if different) and `WACRM_API_KEY`, then redeploy.
+3. In the CRM: Settings → Templates, create and get approval for a bill template whose body
+   uses `{{1}}` customer name, `{{2}}` salon name, `{{3}}` bill number, `{{4}}` amount.
+4. In the billing dashboard: WhatsApp → enter the template name, tick auto-send, Save, Send test.
+
+Auto-send runs after the bill is saved and never blocks billing; failures are logged by the backend.
+
+---
+
 ## Troubleshooting
 
 | Symptom | Fix |

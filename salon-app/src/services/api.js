@@ -236,6 +236,13 @@ export const whatsapp = {
   send: (customerId, content, type) => request('/whatsapp/send', { method: 'POST', body: JSON.stringify({ customerId, content, type }) }),
 };
 
+// ── WhatsApp CRM (whatsapp-crm/) ──
+export const whatsappCrm = {
+  status: () => request('/whatsapp-crm/status'),
+  sendBill: (invoiceId) => request(`/whatsapp-crm/invoices/${invoiceId}/send`, { method: 'POST' }),
+  test: (phone) => request('/whatsapp-crm/test', { method: 'POST', body: JSON.stringify({ phone }) }),
+};
+
 // ── Campaigns ──
 export const campaigns = {
   list: () => request('/campaigns'),
