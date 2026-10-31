@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   MessageCircle, ExternalLink, CheckCircle2, AlertTriangle, Loader2, Send, Inbox,
-  Workflow, Megaphone, GitBranch, RefreshCw,
+  Workflow, Megaphone, GitBranch, RefreshCw, LayoutDashboard, Users, Bot, KanbanSquare, Settings2,
 } from 'lucide-react';
 import PageHeader from '../components/ui/PageHeader';
 import { Card, CardBody, CardHeader } from '../components/ui/Card';
@@ -13,11 +13,17 @@ import { whatsappCrm, settings as settingsApi } from '../services/api';
 
 const field = 'w-full mt-1 text-sm border border-surface-200 py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary-200';
 
+// Every section of the WhatsApp CRM (whatsapp-crm/). Each opens in a new tab.
 const CRM_SECTIONS = [
-  { path: '/inbox', label: 'Inbox', desc: 'Chat with customers', icon: Inbox },
-  { path: '/automations', label: 'Automations', desc: 'Auto replies & follow-ups', icon: Workflow },
-  { path: '/broadcasts', label: 'Broadcasts', desc: 'Offers to many customers', icon: Megaphone },
+  { path: '/dashboard', label: 'Overview', desc: 'Messages, response times, activity', icon: LayoutDashboard },
+  { path: '/inbox', label: 'Inbox', desc: 'Read and reply to customer chats', icon: Inbox },
+  { path: '/contacts', label: 'Contacts', desc: 'Customers, tags, CSV import', icon: Users },
+  { path: '/broadcasts', label: 'Broadcasts', desc: 'Marketing offers to many customers', icon: Megaphone },
+  { path: '/automations', label: 'Automations', desc: 'Auto-reply by keyword or new message', icon: Workflow },
   { path: '/flows', label: 'Chatbot flows', desc: 'Menus and booking bots', icon: GitBranch },
+  { path: '/agents', label: 'AI agent', desc: 'AI replies from your salon info', icon: Bot },
+  { path: '/pipelines', label: 'Pipelines', desc: 'Track leads and enquiries', icon: KanbanSquare },
+  { path: '/settings', label: 'Settings', desc: 'Connect WhatsApp, templates, team, API keys', icon: Settings2 },
 ];
 
 export default function WhatsAppPage() {
@@ -112,6 +118,15 @@ export default function WhatsAppPage() {
                 <p className="font-semibold text-surface-800">WhatsApp CRM is not reachable</p>
                 <p className="text-sm text-surface-500 break-words">{status.error}</p>
               </>
+            ) : status?.installed ? (
+              <>
+                <p className="font-semibold text-surface-800">WhatsApp CRM is installed</p>
+                <p className="text-sm text-surface-500">
+                  Use the sections below for chats, marketing and auto-replies. To start sending and receiving, open{' '}
+                  <strong>Settings → WhatsApp</strong> in the CRM and connect your Meta WhatsApp number.
+                  Billing messages are linked once an API key is added.
+                </p>
+              </>
             ) : (
               <>
                 <p className="font-semibold text-surface-800">WhatsApp CRM is not set up yet</p>
@@ -128,7 +143,7 @@ export default function WhatsAppPage() {
 
       {/* CRM shortcuts */}
       {crmUrl && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4 max-w-3xl">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-4 max-w-3xl">
           {CRM_SECTIONS.map(({ path, label, desc, icon: Icon }) => (
             <a key={path} href={`${crmUrl}${path}`} target="_blank" rel="noopener noreferrer"
               className="bg-white border border-surface-200 rounded-xl p-4 hover:border-primary-200 hover:bg-primary-50 transition-colors">
@@ -144,7 +159,7 @@ export default function WhatsAppPage() {
       <Card className="max-w-3xl">
         <CardHeader>
           <h3 className="text-sm font-semibold text-surface-700 flex items-center gap-2">
-            <MessageCircle size={16} /> Send bills on WhatsApp automatically
+            <MessageCircle size={16} /> Optional: send bills on WhatsApp automatically (off by default)
           </h3>
         </CardHeader>
         <CardBody className="space-y-4">

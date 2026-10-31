@@ -20,6 +20,8 @@ router.get('/status', async (_req, res, next) => {
   try {
     const s = (await prisma.settings.findFirst()) || {};
     const result = {
+      // installed = CRM address known (links work); configured = API key also set (billing can send)
+      installed: Boolean(wacrm.publicUrl()),
       configured: wacrm.isConfigured(),
       url: wacrm.publicUrl() || null,
       connected: false,
