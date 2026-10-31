@@ -23,7 +23,8 @@ const CRM_SECTIONS = [
 export default function WhatsAppPage() {
   const toast = useToast();
   const { user } = useAuth();
-  const isAdmin = ['ADMIN', 'OWNER'].includes(user?.role);
+  // AuthContext stores roles lowercase and maps owner → admin; compare case-insensitively.
+  const isAdmin = ['admin', 'owner'].includes(String(user?.role || '').toLowerCase());
 
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState(null);
