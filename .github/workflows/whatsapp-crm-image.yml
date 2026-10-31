@@ -1,0 +1,58 @@
+# Builds the WhatsApp CRM (whatsapp-crm/) on GitHub's machines and pushes the image
+# to GHCR. Coolify only pulls and runs the finished image, so the heavy Next.js
+# build never runs on the VPS (it overloaded the server when built there).
+name: Build WhatsApp CRM image
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'whatsapp-crm/**'
+      - '.github/workflows/whatsapp-crm-image.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: whatsapp-crm-image
+  cancel-in-progress: true
+
+env:
+  IMAGE: ghcr.io/higleemy-gif/salon-whatsapp-crm
+  # Public values inlined into the browser bundle. The anon key is meant to be
+  # public: every visitor's browser receives it, and row-level security protects data.
+  NEXT_PUBLIC_SUPABASE_URL: https://salonwa-api.187.53.143.234.sslip.io
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJzdXBhYmFzZSIsImlhdCI6MTc5MzQ0NDE2MCwiZXhwIjo0OTQ5MTE3NzYwLCJyb2xlIjoiYW5vbiJ9.lcgZTjaWes-xbkaJEX1fV5xdTCcpLy2TnbmYxmHNdrc
+  NEXT_PUBLIC_SITE_URL: https://salonwa.187.53.143.234.sslip.io
+  NEXT_PUBLIC_APP_LOCALE: en
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: whatsapp-crm
+          file: whatsapp-crm/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ github.sha }}
+          labels: org.opencontainers.image.source=https://github.com/higleemy-gif/salon
+          build-args: |
+            NEXT_PUBLIC_SUPABASE_URL=${{ env.NEXT_PUBLIC_SUPABASE_URL }}
+            NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ env.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+            NEXT_PUBLIC_SITE_URL=${{ env.NEXT_PUBLIC_SITE_URL }}
+            NEXT_PUBLIC_APP_LOCALE=${{ env.NEXT_PUBLIC_APP_LOCALE }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
