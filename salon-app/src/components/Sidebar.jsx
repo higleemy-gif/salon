@@ -10,9 +10,11 @@ import {
   X,
   Sparkles,
   MessageCircle,
+  ExternalLink,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSettings } from '../context/SettingsContext';
+import { whatsappCrm } from '../services/api';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -20,13 +22,20 @@ const navItems = [
   { to: '/bills', icon: FileText, label: 'Bills' },
   { to: '/customers', icon: Users, label: 'Customers' },
   { to: '/services', icon: Scissors, label: 'Services' },
-  { to: '/whatsapp', icon: MessageCircle, label: 'WhatsApp' },
   { to: '/settings', icon: Settings, label: 'Settings' },
 ];
 
 export default function Sidebar() {
   const [open, setOpen] = useState(false);
   const { salonName, logo } = useSettings();
+  // The WhatsApp automation app runs on its own domain; the sidebar just links out to it.
+  const [crmUrl, setCrmUrl] = useState(null);
+
+  useEffect(() => {
+    whatsappCrm.status()
+      .then((s) => setCrmUrl(s.url))
+      .catch(() => setCrmUrl(null));
+  }, []);
 
   return (
     <>
@@ -81,6 +90,20 @@ export default function Sidebar() {
               <span>{label}</span>
             </NavLink>
           ))}
+
+          {/* WhatsApp automation — opens the separate CRM app in a new tab */}
+          {crmUrl && (
+            <a
+              href={crmUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-surface-500 hover:bg-surface-50 hover:text-surface-700 transition-colors"
+            >
+              <MessageCircle size={20} className="flex-shrink-0" />
+              <span className="flex-1">WhatsApp</span>
+              <ExternalLink size={14} className="flex-shrink-0 text-surface-400" />
+            </a>
+          )}
         </nav>
 
         <div className="px-5 py-3 border-t border-surface-100 text-[11px] text-surface-400">
